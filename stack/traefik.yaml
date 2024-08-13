@@ -20,8 +20,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8030:8080" # Porta para o dashboard do Traefik 
-      #Observação - Restringir a Porta do Dashboard para evitar problemas de segurança ou fazer uma regra no Firewall de ACL
+      - "8030:8080" #Observação - Restringir a Porta do Dashboard para evitar problemas de segurança ou fazer uma regra no Firewall de ACL
     networks:
       - web
     volumes:
@@ -76,5 +75,5 @@ networks:
 # criar a rede web no seu docker
 #docker network create \
 #  --driver=bridge \
-#  --subnet=10.250.0.0/29 \ ( inserá a Subnet que você desejar)
+#  --subnet=10.250.0.0/29 \ ( inserir a Subnet que você desejar)
 #  web
