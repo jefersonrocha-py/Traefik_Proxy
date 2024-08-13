@@ -1,0 +1,80 @@
+version: "3.9" #versão
+
+services:
+  traefik:
+    container_name: traefik-proxy # Inserir o nome do container
+    restart: always # Reinicia o contêiner em caso de falha
+    image: traefik:v2.10
+    command:
+      - "--api.insecure=false"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.myresolver.acme.email=seu-email@example.com" # inserir o email
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      - "--log.level=INFO"
+      - "--serversTransport.insecureSkipVerify=true"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8030:8080" # Porta para o dashboard do Traefik 
+      #Observação - Restringir a Porta do Dashboard para evitar problemas de segurança ou fazer uma regra no Firewall de ACL
+    networks:
+      - web
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./letsencrypt/acme.json:/letsencrypt/acme.json"
+    labels:
+      - "traefik.enable=true"
+
+      # Router para Traefik Dashboard com SSL
+      - "traefik.http.routers.traefik.rule=Host(`traefik.seudominio.com`)" # caso queira gerar um SSL para o seu Proxy
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls.certresolver=myresolver"
+      - "traefik.http.routers.traefik.service=api@internal"
+
+      # Middlewares de segurança e headers adicionais
+      - "traefik.http.middlewares.default-headers.headers.customresponseheaders.Access-Control-Allow-Origin=*"
+      - "traefik.http.middlewares.default-headers.headers.customresponseheaders.Access-Control-Allow-Methods=GET, POST, OPTIONS, PUT, DELETE"
+      - "traefik.http.middlewares.default-headers.headers.customresponseheaders.Access-Control-Allow-Headers=Authorization,Content-Type,DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Range,Range"
+      - "traefik.http.middlewares.default-headers.headers.customresponseheaders.Access-Control-Expose-Headers=Content-Length,Content-Range"
+      - "traefik.http.middlewares.default-headers.headers.customresponseheaders.Feature-Policy=camera 'self'; microphone 'self'; geolocation 'self'; midi 'self'; notifications 'self'; push 'self'; vibrate 'self'; fullscreen 'self'"
+      - "traefik.http.middlewares.default-headers.headers.stsSeconds=31536000"
+      - "traefik.http.middlewares.default-headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.default-headers.headers.stsPreload=true"
+      - "traefik.http.middlewares.default-headers.headers.forceSTSHeader=true"
+      - "traefik.http.middlewares.default-headers.headers.contentSecurityPolicy=default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self';"
+      - "traefik.http.middlewares.default-headers.headers.referrerPolicy=no-referrer"
+      - "traefik.http.middlewares.default-headers.headers.frameDeny=true"
+      - "traefik.http.middlewares.default-headers.headers.sslRedirect=true"
+      - "traefik.http.middlewares.default-headers.headers.sslForceHost=true"
+      - "traefik.http.middlewares.default-headers.headers.sslTemporaryRedirect=true"
+      - "traefik.http.middlewares.default-headers.headers.browserXSSFilter=true"
+      - "traefik.http.middlewares.default-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.default-headers.headers.customFrameOptionsValue=SAMEORIGIN"
+
+      # Aplicar middlewares de segurança ao Traefik
+      - "traefik.http.routers.traefik.middlewares=default-headers"
+
+      # Habilitar balanceamento de carga
+      - "traefik.http.services.my-service.loadbalancer.server.port=80"
+      - "traefik.http.services.my-service.loadbalancer.server.scheme=http"
+      - "traefik.http.services.my-service.loadbalancer.sticky=true" # Mantém a sessão de um usuário na mesma instância
+    
+
+
+volumes: #volumes que serão criados
+  traefik_letsencrypt:
+    external: true
+
+networks:
+  web:
+    external: true
+# criar a rede web no seu docker
+#docker network create \
+#  --driver=bridge \
+#  --subnet=10.250.0.0/29 \ ( inserá a Subnet que você desejar)
+#  web
